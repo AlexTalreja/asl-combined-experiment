@@ -367,12 +367,15 @@ def main():
 
     # Initialize detector with use_asl=True to load the model
     detector = handDetector(detectionCon=0.5, use_asl=True)
+    debug = True
+    
 
     pTime = 0
     # Custom combination rules dictionary for when model and geometry disagree
     # Format: (model_letter, geometry_letter): confirmed_letter
     custom_rules = {
         ("H", "S"): "A",  # When model predicts F but geometry predicts H, confirm as F
+        ("H", "S"): "A",
         ("C", "Y"): "C",
         ("R", "D"): "D",
         ("H", "S"): "A",
@@ -391,7 +394,11 @@ def main():
         ("N", "M"): "N",
         ("V", "K"): "V",
         ("H", "C"): "X",
-        ("G", "C"): "X"
+        ("G", "C"): "X",
+        ("P", "M"): "P",
+        ("G", "S"): "P",
+        ("G", "M"): "P",
+        ("Q", "M"): "Q",
 
     }
     
@@ -525,14 +532,16 @@ def main():
                 # Otherwise, we do not confirm.
 
                 # 3) Draw geometry's guessed letter (raw guess) - TOP LEFT
-                # cv2.putText(img, f"Geometry guess: {geometry_letter}",
-                #             (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+                if debug:
+                    cv2.putText(img, f"Geometry guess: {geometry_letter}",
+                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
                 
                 # 4) Draw the model's best guess
                 model_best_letter, model_best_conf = detector.get_asl_best()
-                # if model_best_letter:
-                    # cv2.putText(img, f"Model best: {model_best_letter} ({model_best_conf:.2f})",
-                    #             (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                if debug:
+                    if model_best_letter:
+                        cv2.putText(img, f"Model best: {model_best_letter} ({model_best_conf:.2f})",
+                                    (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 
                 # 5) Determine confirmed letter using all available information
                 confirmed_letter = ""
@@ -541,22 +550,25 @@ def main():
                 if not geometry_letter and model_best_letter:
                     # If geometry is empty but model has a prediction, use model
                     confirmed_letter = model_best_letter
-                    # cv2.putText(img, "Using model prediction only", 
-                    #             (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    if debug:
+                        cv2.putText(img, "Using model prediction only", 
+                                    (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                 
                 # Check if model and geometry agree
                 elif model_best_letter == geometry_letter and geometry_letter:
                     confirmed_letter = geometry_letter
-                    # cv2.putText(img, "Model and geometry agree", 
-                    #             (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    if debug:
+                        cv2.putText(img, "Model and geometry agree", 
+                                    (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
                 # If they disagree, check if we have a custom rule for this combination
                 elif model_best_letter and geometry_letter:
                     rule_key = (model_best_letter, geometry_letter)
                     if rule_key in custom_rules:
                         confirmed_letter = custom_rules[rule_key]
-                        # cv2.putText(img, f"Custom rule applied", 
-                        #            (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        if debug:
+                            cv2.putText(img, f"Custom rule applied", 
+                                    (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                     else:
                         # Default to top-3 check if no specific rule exists
                         top3 = detector.get_asl_top3()
@@ -564,8 +576,9 @@ def main():
                         
                         if geometry_letter in top3_letters:
                             confirmed_letter = geometry_letter
-                            # cv2.putText(img, "Geometry in model's top-3", 
-                            #            (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 165, 0), 2)
+                            if debug:
+                                cv2.putText(img, "Geometry in model's top-3", 
+                                           (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 165, 0), 2)
                 
                 # 6) Display the confirmed letter (if any)
                 if confirmed_letter:
